@@ -1,0 +1,25 @@
+# litkit development/runtime environment (conda-forge only, platform-agnostic).
+# Create:   conda env create -f environment.yml
+# Lock:     conda-lock lock -f environment.yml   (platforms listed below -> conda-lock.yml)
+# Install from lock: conda-lock install -n litkit conda-lock.yml
+name: litkit
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.11,<3.14
+  - pip
+  - click>=8.1
+  - httpx>=0.27
+  - networkx>=3.2          # louvain_communities, GraphML
+  - pymupdf>=1.24          # PDF -> text with page markers (P3)
+  - rapidfuzz>=3.6         # tolerant verbatim quote checking
+  - matplotlib-base>=3.8   # optional PNG graph plots
+  - tomli-w>=1.0           # writing litkit.toml
+  - pytest>=8
+  - pip:
+      - -e .
+platforms:
+  - linux-64
+  - osx-64
+  - osx-arm64
+  - win-64

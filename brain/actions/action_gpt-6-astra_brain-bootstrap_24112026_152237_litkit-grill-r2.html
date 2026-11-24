@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>litkit — grilling round 2</title>
+<!--
+  hedwi.gg founder action form, template v2 (brain/config/AGENTS.md §7A).
+  Everything lives in this one file: the questions, the latest answers (items[]) and every saved
+  response (responses[]), inside the JSON block below. Open it in Chrome or Edge (not an editor preview):
+  "Save into this file" asks once which file this is, then writes straight into it on every save.
+  Models: edit only the JSON block; read the latest answers from items[] (answer / done / note);
+  never delete or rewrite responses[].
+-->
+<style>
+:root { --bg:#fbfaf7; --fg:#1d1b18; --muted:#6b665e; --line:#dedad2; --card:#fff; --accent:#7a3b12; --ok:#2f6b3a; --warn:#9a6a00; --bad:#a3302a; }
+@media (prefers-color-scheme: dark) { :root { --bg:#171614; --fg:#ece8e1; --muted:#a39d93; --line:#38352f; --card:#201e1b; --accent:#e0965a; --ok:#79b886; --warn:#d8b04a; --bad:#e2766f; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 Georgia, "Libre Baskerville", serif; }
+main { max-width:760px; margin:0 auto; padding:24px 16px 140px; }
+h1 { font-size:1.6rem; margin:0 0 4px; }
+.meta, .hint { color:var(--muted); font:13px/1.4 ui-monospace, Consolas, monospace; }
+.intro { margin:16px 0 20px; }
+.banner { border:1px solid var(--warn); color:var(--fg); border-left:4px solid var(--warn); border-radius:4px; padding:8px 12px; margin:12px 0; font-size:14px; }
+.banner[hidden] { display:none; }
+.tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin:0 0 16px; }
+.tab { border:1px solid var(--line); border-bottom:none; border-radius:4px 4px 0 0; background:transparent; color:var(--muted); margin-bottom:-1px; }
+.tab[aria-selected="true"] { background:var(--card); color:var(--fg); border-color:var(--line); }
+.item { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:16px; margin:0 0 14px; }
+.item.done { border-left:4px solid var(--ok); }
+.item h2 { font-size:1.05rem; margin:0 0 6px; display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+.num { color:var(--accent); font-family:ui-monospace, Consolas, monospace; }
+.tag { font:11px ui-monospace, Consolas, monospace; text-transform:uppercase; color:var(--muted); border:1px solid var(--line); border-radius:3px; padding:0 4px; }
+.tag.req { color:var(--warn); border-color:var(--warn); }
+.body { white-space:pre-wrap; margin:0 0 10px; }
+code, pre { font-family:ui-monospace, Consolas, monospace; font-size:13px; background:rgba(127,127,127,.12); border-radius:3px; }
+code { padding:1px 4px; } pre { padding:8px; overflow-x:auto; white-space:pre-wrap; margin:6px 0; }
+label.opt { display:block; padding:6px 8px; border:1px solid var(--line); border-radius:4px; margin:4px 0; cursor:pointer; }
+label.opt:hover { border-color:var(--accent); }
+.rec { color:var(--ok); font-size:13px; }
+.optdesc { display:block; color:var(--muted); font-size:14px; margin-left:24px; }
+textarea, input[type=text] { width:100%; font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:6px 8px; }
+textarea { min-height:64px; resize:vertical; }
+.row { display:flex; gap:8px; align-items:center; margin-top:8px; }
+.resp h2 { font-size:1rem; }
+.resp ul { margin:6px 0 0; padding-left:20px; }
+.resp li { margin:2px 0; }
+.old { color:var(--muted); text-decoration:line-through; }
+.resp details { margin-top:8px; font-size:14px; }
+.bar { position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:10px 16px; }
+.bar .in { max-width:760px; margin:0 auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.progress { flex:1; min-width:140px; height:6px; background:var(--line); border-radius:3px; overflow:hidden; }
+.progress i { display:block; height:100%; background:var(--ok); width:0; }
+button { font:14px ui-monospace, Consolas, monospace; padding:6px 10px; border:1px solid var(--accent); background:transparent; color:var(--accent); border-radius:4px; cursor:pointer; }
+button.primary { background:var(--accent); color:var(--bg); }
+#msg { width:100%; }
+#msg.bad { color:var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title"></h1>
+  <div class="meta" id="meta"></div>
+  <div class="banner" id="env" hidden></div>
+  <div class="intro body" id="intro"></div>
+  <div class="tabs" role="tablist">
+    <button type="button" class="tab" role="tab" id="tab-form" aria-controls="form" aria-selected="true">Form</button>
+    <button type="button" class="tab" role="tab" id="tab-hist" aria-controls="history" aria-selected="false">Previous responses</button>
+  </div>
+  <form id="form" role="tabpanel" aria-labelledby="tab-form" onsubmit="return false"></form>
+  <section id="history" role="tabpanel" aria-labelledby="tab-hist" hidden></section>
+</main>
+<div class="bar"><div class="in">
+  <div class="progress"><i id="prog"></i></div><span class="hint" id="count"></span>
+  <button type="button" class="primary" id="save">Save into this file</button>
+  <button type="button" id="download">Download a copy</button>
+  <button type="button" id="copy">Copy answers</button>
+  <div class="hint" id="msg"></div>
+</div></div>
+
+<script type="application/json" id="form-data">
+{
+  "meta": {
+    "id": "action_gpt-6-astra_brain-bootstrap_24112026_152237_litkit-grill-r2",
+    "file": "brain/actions/action_gpt-6-astra_brain-bootstrap_24112026_152237_litkit-grill-r2.html",
+    "title": "litkit — round 2: unresolved policy decisions",
+    "intro": "P1/P2 implementation is approved and continues independently. This form contains only open decisions; it does not repeat saved answers. Round-1 history stays in the archived action_claude-opus-5-5_main_24112026_132800_litkit-grill-r1.html (personal email redacted). Recommendations are not approvals. Add overrides in notes. Do not enter secrets or personal contact data. Save into this file in Chrome/Edge, then tell the agent; browser-local unsaved edits are not approval.",
+    "produced_by_model": "gpt-6-astra",
+    "produced_by_agent": "brain-bootstrap",
+    "created": "2026-11-24T15:21:15+01:00",
+    "last_updated": "2026-11-24T15:21:15+01:00",
+    "source_conv": "brain/convs/conv_gpt-6-astra_brain-bootstrap_24112026_150925_brain-setup.md",
+    "status": "open",
+    "answered_at": null
+  },
+  "responses": [],
+  "items": [
+    {
+      "id": "D1e-review",
+      "type": "choice",
+      "title": "D1e-review · Keep defaults provisional until a transparent comparison?",
+      "body": "Round 1 approved fixed transforms, missing-value renormalization, retraction veto, non-peer multiplier 0.5, inherited source score and separate quote score. It deferred final weights until actual corpus metrics are visible. Proposed source weights: FWCI .20, percentile .20, influential share .10, local citations .15, venue citedness .10, venue h-index .05, context support .10, low self-citation .05, growth .05. No empirical comparison is yet attached; this question selects a review protocol, NOT final weights.",
+      "required": true,
+      "options": [
+        {
+          "value": "compare",
+          "label": "Yes: compare baseline, equal-weight and no-venue variants before final approval",
+          "description": "Show top-rank changes, missingness/coverage and representative old/new/grey literature; keep every input and rule version.",
+          "recommended": true
+        },
+        {
+          "value": "retain",
+          "label": "Keep baseline indefinitely, clearly labeled provisional",
+          "description": "No claim of validated quality.",
+          "recommended": false
+        },
+        {
+          "value": "manual",
+          "label": "I will supply research-question-specific weights",
+          "description": "Put weights and rationale in notes, not secrets.",
+          "recommended": false
+        },
+        {
+          "value": "defer",
+          "label": "Defer protocol until the first real metric report",
+          "description": "P1/P2 proceed with provisional defaults.",
+          "recommended": false
+        }
+      ],
+      "allow_other": true,
+      "answer": null,
+      "note": ""
+    },
+    {
+      "id": "D10a",
+      "type": "choice",
+      "title": "D10a · Defer GUI implementation and preserve a clean CLI/library boundary?",
+      "body": "All three graph outputs are approved. A general GUI was raised as a possibility, not a build request. P1/P2 should proceed now.",
+      "required": true,
+      "options": [
+        {
+          "value": "defer",
+          "label": "Yes: no GUI implementation in P1/P2",
+          "description": "Revisit after CLI workflows and exports have been used.",
+          "recommended": true
+        },
+        {
+          "value": "localweb",
+          "label": "Plan a local browser UI after P1/P2",
+          "description": "Local-only service, no hosted multi-user deployment implied.",
+          "recommended": false
+        },
+        {
+          "value": "desktop",
+          "label": "Plan a desktop UI after P1/P2",
+          "description": "Cross-platform packaging needs a separate design.",
+          "recommended": false
+        },
+        {
+          "value": "none",
+          "label": "Stay CLI/library-only",
+          "description": "Keep the offline graph HTML as a view, not a workflow GUI.",
+          "recommended": false
+        }
+      ],
+      "allow_other": true,
+      "answer": null,
+      "note": ""
+    },
+    {
+      "id": "D6a",
+      "type": "choice",
+      "title": "D6a · Use bounded, resumable API runs without paid upgrades?",
+      "body": "All seven APIs are approved. Depth-1 snowball both ways is approved; CD is on-demand with a 200-citer cap. Current provider quotas must be read live, not assumed from the old spec. Select a policy for future runs; existing implementation defaults remain provisional until this answer is processed.",
+      "required": true,
+      "options": [
+        {
+          "value": "bounded",
+          "label": "Yes: 500 outbound HTTP attempts/run, 100 citers/seed, 2000 new works/run",
+          "description": "Retries consume the attempt budget; cache hits do not. Honor Retry-After; stop at the first cap, retain continuation state, no paid upgrades. CD retains its separate 200-citer cap.",
+          "recommended": true
+        },
+        {
+          "value": "small",
+          "label": "Small: 100 attempts/run, 25 citers/seed, 500 new works",
+          "description": "Same stop/resume and no-paid-upgrade policy.",
+          "recommended": false
+        },
+        {
+          "value": "large",
+          "label": "Large: 2000 attempts/run, 500 citers/seed, 10000 new works",
+          "description": "Only within live provider allowance; same no-paid-upgrade policy.",
+          "recommended": false
+        },
+        {
+          "value": "custom",
+          "label": "Custom budgets",
+          "description": "Give limits in notes; never enter API keys. Monetary provider budgets are additional hard ceilings.",
+          "recommended": false
+        }
+      ],
+      "allow_other": true,
+      "answer": null,
+      "note": ""
+    },
+    {
+      "id": "D5a",
+      "type": "choice",
+      "title": "D5a · Treat automated agreement as a candidate, with human confirmation for replication?",
+      "body": "Round 1 approved replication as an indicator, not a universal criterion. Citation context does not establish agreement; different author names alone do not establish independent data. Research questions may be numeric or qualitative.",
+      "required": true,
+      "options": [
+        {
+          "value": "review",
+          "label": "Yes: automated candidates plus explicit reviewed judgment",
+          "description": "Store claim identity, unit/condition compatibility, independence rationale, uncertainty/tolerance rule and supporting quotations. Unknown remains unknown; no universal agreement factor.",
+          "recommended": true
+        },
+        {
+          "value": "strict",
+          "label": "Count only explicitly documented independent replication studies",
+          "description": "Conservative; store exclusions and provenance.",
+          "recommended": false
+        },
+        {
+          "value": "numeric",
+          "label": "Numeric rule per research question, explicitly labeled heuristic",
+          "description": "Require specified tolerances, uncertainty handling, condition match and author/data overlap; never call the heuristic proof.",
+          "recommended": false
+        },
+        {
+          "value": "manual",
+          "label": "Manual-only replication annotations",
+          "description": "No automated replication count until reviewed evidence is entered.",
+          "recommended": false
+        }
+      ],
+      "allow_other": true,
+      "answer": null,
+      "note": ""
+    },
+    {
+      "id": "D7a",
+      "type": "choice",
+      "title": "D7a · Publish only reviewed, license-safe exports rather than every table by default?",
+      "body": "D7 selected reviewable JSONL dumps, but the repository is now public. D11 makes JSON the primary export; this does not settle publication rights. Tables may contain copyrighted abstracts/full text/quotes, private local paths, request URLs or contact metadata. Local completeness and public release are separate requirements.",
+      "required": true,
+      "options": [
+        {
+          "value": "reviewed",
+          "label": "Yes: complete local JSON exports; explicit reviewed public export",
+          "description": "Default public allowlist: identifiers, bibliographic facts, metrics with provenance and code-owned examples. Exclude full text, PDFs, contact info, secrets, local paths and unreviewed quote/context text; assess each provider license.",
+          "recommended": true
+        },
+        {
+          "value": "metadata",
+          "label": "Publish no real dataset; metadata examples only after review",
+          "description": "Keep full research exports entirely outside the public code repository.",
+          "recommended": false
+        },
+        {
+          "value": "licensed",
+          "label": "Publish selected datasets only when redistribution license is recorded",
+          "description": "No automatic release; record source/license and review quote/abstract rights and personal data.",
+          "recommended": false
+        },
+        {
+          "value": "private",
+          "label": "Keep all corpus-derived exports private",
+          "description": "Public repo contains code and synthetic fixtures only; synthetic fixtures must be labeled.",
+          "recommended": false
+        }
+      ],
+      "allow_other": true,
+      "answer": null,
+      "note": ""
+    }
+  ]
+}
+</script>
+<script>
+(function () {
+  'use strict';
+  var OPEN = '<script type="application/json" ' + 'id="form-data">', CLOSE = '</' + 'script>';
+  var SRC = '<!doctype html>\n' + document.documentElement.outerHTML;   // pristine copy, before rendering
+  var data = JSON.parse(document.getElementById('form-data').textContent);
+  if (!Array.isArray(data.responses)) data.responses = [];
+  var fileName = data.meta.file.split('/').pop();
+  var $ = function (id) { return document.getElementById(id); };
+
+  // Unsaved answers survive a reload in this browser (same key as template v1, so older forms keep theirs).
+  var KEY = 'hedwigg-form:' + data.meta.id + ':' + data.meta.last_updated;
+  try { var saved = localStorage.getItem(KEY); if (saved) { var s = JSON.parse(saved); data.items.forEach(function (it) { var o = s[it.id]; if (o) { ['answer','done','note'].forEach(function (k) { if (k in o) it[k] = o[k]; }); } }); } } catch (e) {}
+
+  function esc(t) { return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function md(t) {   // tiny renderer: ```blocks``` and `code`, nothing else
+    return esc(t).split('```').map(function (part, i) { return i % 2 ? '<pre>' + part.replace(/^\w*\n/, '') + '</pre>' : part.replace(/`([^`]+)`/g, '<code>$1</code>'); }).join('');
+  }
+  function answered(it) {
+    if (it.type === 'task') return !!it.done;
+    if (it.type === 'multi') return (it.answer || []).length > 0;
+    return it.answer != null && String(it.answer).trim() !== '';
+  }
+  function say(text, bad) { var m = $('msg'); m.textContent = text; m.className = 'hint' + (bad ? ' bad' : ''); }
+  function nowIso() {
+    var now = new Date(), off = -now.getTimezoneOffset(), p = function (n) { return String(Math.abs(n)).padStart(2, '0'); };
+    return now.getFullYear() + '-' + p(now.getMonth() + 1) + '-' + p(now.getDate()) + 'T' + p(now.getHours()) + ':' + p(now.getMinutes()) + ':' + p(now.getSeconds()) + (off >= 0 ? '+' : '-') + p(off / 60 | 0) + ':' + p(off % 60);
+  }
+  function persist() {
+    var s = {}; data.items.forEach(function (it) { s[it.id] = { answer: it.answer, done: it.done, note: it.note }; });
+    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
+    var n = data.items.filter(answered).length;
+    $('prog').style.width = (100 * n / data.items.length) + '%';
+    $('count').textContent = n + ' / ' + data.items.length;
+    data.items.forEach(function (it) { var el = $('item-' + it.id); if (el) el.classList.toggle('done', answered(it)); });
+  }
+
+  // ---- where are we running? Writing into the file needs Chrome or Edge in a normal tab. ----
+  var embedded = (function () { try { return window.top !== window.self; } catch (e) { return true; } })() || /\b(Code|Electron)\//.test(navigator.userAgent);
+  var canWrite = !!window.showOpenFilePicker && !embedded;
+  if (embedded) {
+    $('env').hidden = false;
+    $('env').textContent = 'This page is shown inside another app (an editor preview or embedded browser), which does not let pages write files. ' +
+      'Open ' + fileName + ' in Chrome or Edge to save into it: right-click the file → Open with, or drag it into a browser tab. Your answers stay in this window meanwhile.';
+  } else if (!window.showOpenFilePicker) {
+    $('env').hidden = false;
+    $('env').textContent = 'This browser cannot write into files (Firefox and Safari can\'t). Open ' + fileName + ' in Chrome or Edge to save into it; here "Download a copy" is the fallback.';
+  }
+
+  // ---- header and tabs ----
+  document.title = data.meta.title;
+  $('title').textContent = data.meta.title;
+  $('meta').textContent = data.meta.file + ' · ' + data.meta.produced_by_model + ' · ' + data.meta.created + ' · status ' + data.meta.status;
+  $('intro').innerHTML = md(data.meta.intro || '');
+  function showTab(hist) {
+    $('tab-form').setAttribute('aria-selected', String(!hist)); $('tab-hist').setAttribute('aria-selected', String(hist));
+    $('form').hidden = hist; $('history').hidden = !hist;
+  }
+  $('tab-form').onclick = function () { showTab(false); };
+  $('tab-hist').onclick = function () { showTab(true); };
+
+  // ---- the form ----
+  var form = $('form');
+  data.items.forEach(function (it, idx) {
+    var d = document.createElement('section'); d.className = 'item'; d.id = 'item-' + it.id;
+    var h = '<h2><span class="num">' + (idx + 1) + '</span><span>' + esc(it.title) + '</span>' +
+      '<span class="tag">' + esc(it.type) + '</span>' + (it.required ? '<span class="tag req">required</span>' : '') + '</h2>';
+    if (it.body) h += '<div class="body">' + md(it.body) + '</div>';
+    var name = 'f-' + it.id;
+    if (it.type === 'task') {
+      h += '<label class="opt"><input type="checkbox" data-k="done"' + (it.done ? ' checked' : '') + '> Done</label>';
+    } else if (it.type === 'choice' || it.type === 'multi') {
+      var multi = it.type === 'multi', cur = it.answer;
+      (it.options || []).forEach(function (o) {
+        var on = multi ? (cur || []).indexOf(o.value) >= 0 : cur === o.value;
+        h += '<label class="opt"><input type="' + (multi ? 'checkbox' : 'radio') + '" name="' + name + '" value="' + esc(o.value) + '"' + (on ? ' checked' : '') + '> ' +
+          esc(o.label) + (o.recommended ? ' <span class="rec">(recommended)</span>' : '') + (o.description ? '<span class="optdesc">' + md(o.description) + '</span>' : '') + '</label>';
+      });
+      if (it.allow_other && !multi) {
+        var isOther = cur != null && !(it.options || []).some(function (o) { return o.value === cur; });
+        h += '<label class="opt"><input type="radio" name="' + name + '" value="__other"' + (isOther ? ' checked' : '') + '> Other: <input type="text" data-k="other" value="' + (isOther ? esc(cur) : '') + '"></label>';
+      }
+    } else {
+      h += '<textarea data-k="answer">' + esc(it.answer || '') + '</textarea>';
+    }
+    if (it.type !== 'text') h += '<div class="row"><input type="text" data-k="note" placeholder="Note (optional)" value="' + esc(it.note || '') + '"></div>';
+    d.innerHTML = h;
+    d.addEventListener('input', function (ev) {
+      var t = ev.target, k = t.getAttribute('data-k');
+      if (k === 'done') it.done = t.checked;
+      else if (k === 'note') it.note = t.value;
+      else if (k === 'answer') it.answer = t.value;
+      else if (k === 'other') { it.answer = t.value; var r = d.querySelector('input[value="__other"]'); if (r) r.checked = true; }
+      else if (t.name === name && it.type === 'multi') it.answer = Array.prototype.filter.call(d.querySelectorAll('input[name="' + name + '"]'), function (x) { return x.checked; }).map(function (x) { return x.value; });
+      else if (t.name === name) it.answer = t.value === '__other' ? (d.querySelector('[data-k="other"]').value || '') : t.value;
+      persist();
+    });
+    form.appendChild(d);
+  });
+  persist();
+
+  // ---- previous responses ----
+  function show(it, a) {
+    if (!a) return '—';
+    var v;
+    if (it.type === 'task') v = a.done ? 'done' : 'not done';
+    else if (it.type === 'multi') v = (a.answer || []).map(function (x) { var o = (it.options || []).filter(function (o) { return o.value === x; })[0]; return o ? o.label : x; }).join(', ') || '—';
+    else if (it.type === 'choice') { var o = (it.options || []).filter(function (o) { return o.value === a.answer; })[0]; v = o ? o.label : (a.answer == null || a.answer === '' ? '—' : a.answer); }
+    else v = a.answer == null || String(a.answer).trim() === '' ? '—' : a.answer;
+    return v + (a.note ? ' (note: ' + a.note + ')' : '');
+  }
+  function renderHistory() {
+    var rs = data.responses, box = $('history');
+    $('tab-hist').textContent = 'Previous responses (' + rs.length + ')';
+    if (!rs.length) { box.innerHTML = '<p class="hint">No response saved yet. Each "Save into this file" adds one here, and nothing is ever overwritten.</p>'; return; }
+    var html = '';
+    for (var i = rs.length - 1; i >= 0; i--) {
+      var r = rs[i], prev = i > 0 ? rs[i - 1].answers || {} : {}, cur = r.answers || {}, changes = '', all = '';
+      data.items.forEach(function (it) {
+        var now = show(it, cur[it.id]), was = show(it, prev[it.id]);
+        all += '<li><b>' + esc(it.title) + ':</b> ' + esc(now) + '</li>';
+        if (now !== was) changes += '<li><b>' + esc(it.title) + ':</b> ' + (i > 0 ? '<span class="old">' + esc(was) + '</span> → ' : '') + esc(now) + '</li>';
+      });
+      html += '<section class="item resp"><h2><span class="num">#' + (i + 1) + '</span><span>' + esc(r.saved_at) + '</span><span class="tag">' + esc(r.status || '') + '</span></h2>' +
+        (changes ? '<div class="hint">' + (i > 0 ? 'Changed since #' + i : 'Answers') + '</div><ul>' + changes + '</ul>' : '<div class="hint">No change since #' + i + '.</div>') +
+        '<details><summary>All answers in #' + (i + 1) + '</summary><ul>' + all + '</ul></details></section>';
+    }
+    box.innerHTML = html;
+  }
+  renderHistory();
+
+  // ---- saving: everything goes into this same file ----
+  function snapshot(iso) {
+    var a = {};
+    data.items.forEach(function (it) { var o = {}; ['answer','done','note'].forEach(function (k) { if (it[k] !== undefined) o[k] = it[k]; }); a[it.id] = o; });
+    return { saved_at: iso, status: data.meta.status, answers: a };
+  }
+  function formOf(html) {   // the form-data JSON of an HTML text, or null
+    try { var el = new DOMParser().parseFromString(html, 'text/html').getElementById('form-data'); return el ? JSON.parse(el.textContent) : null; } catch (e) { return null; }
+  }
+  function withJson(html, obj) {
+    var i = html.indexOf(OPEN), j = html.indexOf(CLOSE, i);
+    if (i < 0 || j < 0) throw new Error('the form-data block is missing');
+    return html.slice(0, i + OPEN.length) + '\n' + JSON.stringify(obj, null, 2).replace(/<\//g, '<\\/') + '\n' + html.slice(j);
+  }
+  // Builds the new file. base = the file's current text (so a newer template or responses saved from another
+  // tab are kept) or this page's own source. Returns { html, obj }.
+  function build(baseHtml, onDisk) {
+    var iso = nowIso();
+    var req = data.items.filter(function (it) { return it.required; });
+    if (data.meta.status === 'open' && req.every(answered)) data.meta.status = 'answered';
+    data.meta.answered_at = iso;
+    var obj = JSON.parse(JSON.stringify(data));
+    var past = onDisk && Array.isArray(onDisk.responses) && onDisk.responses.length >= data.responses.length ? onDisk.responses : data.responses;
+    if (onDisk && onDisk.meta && (onDisk.meta.status === 'processed' || onDisk.meta.status === 'superseded')) obj.meta.status = onDisk.meta.status;
+    obj.responses = past.concat([snapshot(iso)]);
+    return { html: withJson(baseHtml, obj), obj: obj };
+  }
+
+  var DB = 'hedwigg-forms', STORE = 'handles';
+  function idb() { return new Promise(function (ok, no) { var r = indexedDB.open(DB, 1); r.onupgradeneeded = function () { r.result.createObjectStore(STORE); }; r.onsuccess = function () { ok(r.result); }; r.onerror = function () { no(r.error); }; }); }
+  function loadHandle() { return idb().then(function (db) { return new Promise(function (ok) { var q = db.transaction(STORE).objectStore(STORE).get(data.meta.id); q.onsuccess = function () { ok(q.result || null); }; q.onerror = function () { ok(null); }; }); }).catch(function () { return null; }); }
+  function keepHandle(h) { return idb().then(function (db) { db.transaction(STORE, 'readwrite').objectStore(STORE).put(h, data.meta.id); }).catch(function () {}); }
+  function forgetHandle() { return idb().then(function (db) { db.transaction(STORE, 'readwrite').objectStore(STORE).delete(data.meta.id); }).catch(function () {}); }
+
+  var handle = null;
+  async function pickFile() {
+    say('Choose this form\'s own file, ' + fileName + ' (in brain/actions/). The page asks only once.');
+    var hs = await window.showOpenFilePicker({ id: 'hedwigg-actions', multiple: false, types: [{ description: 'Action form', accept: { 'text/html': ['.html'] } }] });
+    return hs[0];
+  }
+  async function writeIntoFile() {
+    if (!handle) handle = await loadHandle();
+    if (!handle) handle = await pickFile();
+    var perm = await handle.queryPermission({ mode: 'readwrite' });
+    // requestPermission needs a fresh click; if Chrome refuses it here, createWritable below asks instead.
+    if (perm !== 'granted') { try { perm = await handle.requestPermission({ mode: 'readwrite' }); } catch (e) { perm = 'prompt'; } }
+    if (perm === 'denied') { var e = new Error('permission'); e.name = 'NotAllowedError'; throw e; }
+    var text = await (await handle.getFile()).text(), onDisk = formOf(text);
+    if (!onDisk || !onDisk.meta || onDisk.meta.id !== data.meta.id) {
+      var picked = handle.name; handle = null; await forgetHandle();
+      throw new Error(picked + ' is not this form (' + fileName + '). Nothing was written; press Save again and pick ' + fileName + '.');
+    }
+    var out = build(text, onDisk);
+    var w = await handle.createWritable();
+    await w.write(out.html); await w.close();
+    await keepHandle(handle);
+    data.responses = out.obj.responses; data.meta.status = out.obj.meta.status;
+    renderHistory();
+    $('meta').textContent = data.meta.file + ' · ' + data.meta.produced_by_model + ' · ' + data.meta.created + ' · status ' + data.meta.status;
+    say('Saved into ' + handle.name + ' at ' + out.obj.meta.answered_at.slice(11, 16) + ' (response #' + data.responses.length + ', status ' + data.meta.status + '). Tell the model in chat.');
+  }
+  function download() {
+    var out = build(SRC, null);
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([out.html], { type: 'text/html' })); a.download = fileName; a.click();
+    data.responses = out.obj.responses; renderHistory();
+    say('Downloaded ' + fileName + ' (response #' + data.responses.length + '). Move it over the original in brain/actions/.');
+  }
+  $('save').onclick = async function () {
+    if (!canWrite) { say(embedded ? 'Saving into the file does not work inside this app. Open ' + fileName + ' in Chrome or Edge, or use "Download a copy".' : 'This browser cannot write files. Use Chrome or Edge, or "Download a copy".', true); return; }
+    try { await writeIntoFile(); }
+    catch (e) {
+      if (e.name === 'AbortError') { say('Not saved (no file chosen).'); return; }
+      if (e.name === 'NotAllowedError' || e.name === 'SecurityError') { handle = null; await forgetHandle(); say('The browser did not allow writing to the file (permission refused, or the page runs where file writes are blocked). Open ' + fileName + ' directly in Chrome or Edge and press Save again, or use "Download a copy". Your answers are kept.', true); return; }
+      say('Save failed: ' + e.message, true);
+    }
+  };
+  $('download').onclick = download;
+  $('copy').onclick = function () {
+    var out = data.items.map(function (it, i) { return (i + 1) + '. ' + it.title + ': ' + (it.type === 'task' ? (it.done ? 'done' : 'not done') : JSON.stringify(it.answer)) + (it.note ? ' (note: ' + it.note + ')' : ''); }).join('\n');
+    navigator.clipboard.writeText(out).then(function () { say('Answers copied; paste them in the chat.'); });
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1096 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>litkit spec — grilling round 1</title>
+<!--
+  hedwi.gg founder action form, template v2 (brain/config/AGENTS.md §7A).
+  Everything lives in this one file: the questions, the latest answers (items[]) and every saved
+  response (responses[]), inside the JSON block below. Open it in Chrome or Edge (not an editor preview):
+  "Save into this file" asks once which file this is, then writes straight into it on every save.
+  Models: edit only the JSON block; read the latest answers from items[] (answer / done / note);
+  never delete or rewrite responses[].
+-->
+<style>
+:root { --bg:#fbfaf7; --fg:#1d1b18; --muted:#6b665e; --line:#dedad2; --card:#fff; --accent:#7a3b12; --ok:#2f6b3a; --warn:#9a6a00; --bad:#a3302a; }
+@media (prefers-color-scheme: dark) { :root { --bg:#171614; --fg:#ece8e1; --muted:#a39d93; --line:#38352f; --card:#201e1b; --accent:#e0965a; --ok:#79b886; --warn:#d8b04a; --bad:#e2766f; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 Georgia, "Libre Baskerville", serif; }
+main { max-width:760px; margin:0 auto; padding:24px 16px 140px; }
+h1 { font-size:1.6rem; margin:0 0 4px; }
+.meta, .hint { color:var(--muted); font:13px/1.4 ui-monospace, Consolas, monospace; }
+.intro { margin:16px 0 20px; }
+.banner { border:1px solid var(--warn); color:var(--fg); border-left:4px solid var(--warn); border-radius:4px; padding:8px 12px; margin:12px 0; font-size:14px; }
+.banner[hidden] { display:none; }
+.tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin:0 0 16px; }
+.tab { border:1px solid var(--line); border-bottom:none; border-radius:4px 4px 0 0; background:transparent; color:var(--muted); margin-bottom:-1px; }
+.tab[aria-selected="true"] { background:var(--card); color:var(--fg); border-color:var(--line); }
+.item { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:16px; margin:0 0 14px; }
+.item.done { border-left:4px solid var(--ok); }
+.item h2 { font-size:1.05rem; margin:0 0 6px; display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+.num { color:var(--accent); font-family:ui-monospace, Consolas, monospace; }
+.tag { font:11px ui-monospace, Consolas, monospace; text-transform:uppercase; color:var(--muted); border:1px solid var(--line); border-radius:3px; padding:0 4px; }
+.tag.req { color:var(--warn); border-color:var(--warn); }
+.body { white-space:pre-wrap; margin:0 0 10px; }
+code, pre { font-family:ui-monospace, Consolas, monospace; font-size:13px; background:rgba(127,127,127,.12); border-radius:3px; }
+code { padding:1px 4px; } pre { padding:8px; overflow-x:auto; white-space:pre-wrap; margin:6px 0; }
+label.opt { display:block; padding:6px 8px; border:1px solid var(--line); border-radius:4px; margin:4px 0; cursor:pointer; }
+label.opt:hover { border-color:var(--accent); }
+.rec { color:var(--ok); font-size:13px; }
+.optdesc { display:block; color:var(--muted); font-size:14px; margin-left:24px; }
+textarea, input[type=text] { width:100%; font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:6px 8px; }
+textarea { min-height:64px; resize:vertical; }
+.row { display:flex; gap:8px; align-items:center; margin-top:8px; }
+.resp h2 { font-size:1rem; }
+.resp ul { margin:6px 0 0; padding-left:20px; }
+.resp li { margin:2px 0; }
+.old { color:var(--muted); text-decoration:line-through; }
+.resp details { margin-top:8px; font-size:14px; }
+.bar { position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:10px 16px; }
+.bar .in { max-width:760px; margin:0 auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.progress { flex:1; min-width:140px; height:6px; background:var(--line); border-radius:3px; overflow:hidden; }
+.progress i { display:block; height:100%; background:var(--ok); width:0; }
+button { font:14px ui-monospace, Consolas, monospace; padding:6px 10px; border:1px solid var(--accent); background:transparent; color:var(--accent); border-radius:4px; cursor:pointer; }
+button.primary { background:var(--accent); color:var(--bg); }
+#msg { width:100%; }
+#msg.bad { color:var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title"></h1>
+  <div class="meta" id="meta"></div>
+  <div class="banner" id="env" hidden></div>
+  <div class="intro body" id="intro"></div>
+  <div class="tabs" role="tablist">
+    <button type="button" class="tab" role="tab" id="tab-form" aria-controls="form" aria-selected="true">Form</button>
+    <button type="button" class="tab" role="tab" id="tab-hist" aria-controls="history" aria-selected="false">Previous responses</button>
+  </div>
+  <form id="form" role="tabpanel" aria-labelledby="tab-form" onsubmit="return false"></form>
+  <section id="history" role="tabpanel" aria-labelledby="tab-hist" hidden></section>
+</main>
+<div class="bar"><div class="in">
+  <div class="progress"><i id="prog"></i></div><span class="hint" id="count"></span>
+  <button type="button" class="primary" id="save">Save into this file</button>
+  <button type="button" id="download">Download a copy</button>
+  <button type="button" id="copy">Copy answers</button>
+  <div class="hint" id="msg"></div>
+</div></div>
+
+<script type="application/json" id="form-data">
+{
+  "meta": {
+    "id": "action_claude-opus-5-5_main_24112026_132800_litkit-grill-r1",
+    "file": "brain/actions/action_claude-opus-5-5_main_24112026_132800_litkit-grill-r1.html",
+    "title": "litkit spec — grilling round 1",
+    "intro": "Round 1 of the grilling for the quality-aware citation-graph literature pipeline. Read the spec first: brain/drafts/active/draft_spec_claude-opus-5-5_main_24112026_132800_litkit-quality-graph.md (sections referenced in each question). Each question has a recommended option; pick, override with 'other', or add a note. Save into this file and tell me in chat (or answer compactly in chat, e.g. 'D1 ok, D4 growth, ...'). UPDATE 2026-11-24 (same form, your saved answers kept): D1 answered (weighted composite, explicit formula, inherited by quotes) → follow-ups D1a–D1e added; OpenAlex key found and verified (T1 done) → key-handling K1 and contact-email K2 added.",
+    "produced_by_model": "claude-opus-5-5",
+    "produced_by_agent": "main",
+    "created": "2026-11-24T13:28:00+01:00",
+    "last_updated": "2026-11-24T13:28:00+01:00",
+    "source_conv": "brain/convs/conv_claude-opus-5-5_main_20112026_125931_literature-search.md",
+    "status": "open",
+    "answered_at": "2026-11-24T14:49:19+01:00"
+  },
+  "responses": [
+    {
+      "saved_at": "2026-11-24T14:15:34+01:00",
+      "status": "open",
+      "answers": {
+        "D1": {
+          "answer": "Separate named indicators, keep track of all the scores and metrics that may be related to paper quality and journal quality, then create a weighted composite score based on them. Quotes inherit this score. KEEP TRACK OF EVERYTHING AND MAKE THE WEIGHTED COMPOSITE SCORE EXPLICIT (ITS FORMULA) IN THE DOCUMENTATION.",
+          "note": ""
+        },
+        "D2": {
+          "answer": [],
+          "note": ""
+        },
+        "D3": {
+          "answer": null,
+          "note": ""
+        },
+        "D4": {
+          "answer": null,
+          "note": ""
+        },
+        "D5": {
+          "answer": [],
+          "note": ""
+        },
+        "D6": {
+          "answer": null,
+          "note": ""
+        },
+        "D7": {
+          "answer": null,
+          "note": ""
+        },
+        "D8": {
+          "answer": null,
+          "note": ""
+        },
+        "D9": {
+          "answer": null,
+          "note": ""
+        },
+        "D10": {
+          "answer": null,
+          "note": ""
+        },
+        "D11": {
+          "answer": null,
+          "note": ""
+        },
+        "D12": {
+          "answer": null,
+          "note": ""
+        },
+        "Q13": {
+          "answer": ""
+        },
+        "T1": {
+          "done": false,
+          "note": ""
+        }
+      }
+    },
+    {
+      "saved_at": "2026-11-24T14:49:19+01:00",
+      "status": "open",
+      "answers": {
+        "D1": {
+          "answer": "Separate named indicators, keep track of all the scores and metrics that may be related to paper quality and journal quality, then create a weighted composite score based on them. Quotes inherit this score. KEEP TRACK OF EVERYTHING AND MAKE THE WEIGHTED COMPOSITE SCORE EXPLICIT (ITS FORMULA) IN THE DOCUMENTATION.",
+          "note": ""
+        },
+        "D1a": {
+          "answer": "fixed_transforms",
+          "note": ""
+        },
+        "D1b": {
+          "answer": "renormalize",
+          "note": ""
+        },
+        "D1c": {
+          "answer": "veto",
+          "note": ""
+        },
+        "D1d": {
+          "answer": "inherit_plus",
+          "note": "Make sure to of course track quote level indicators individually too. The point is any derived score we are using, based on other metrics we fetched has to be traceable, i.e., we need to track the numbers that generated our scores, to manually review if needed."
+        },
+        "D1e": {
+          "answer": "later",
+          "note": ""
+        },
+        "D2": {
+          "answer": [
+            "openalex",
+            "s2",
+            "coci",
+            "crossref",
+            "unpaywall",
+            "europepmc",
+            "arxiv"
+          ],
+          "note": ""
+        },
+        "D3": {
+          "answer": "openalex_sjr",
+          "note": "Can you not include a script that fetches the SCImago CSVs in the library, and I can run it and update it when neeeded?"
+        },
+        "D4": {
+          "answer": "cd_ondemand",
+          "note": "True that for physical constants, I do not take particular interest in novelty, but rather on replication. However, I am intending this package to be also usable for other research questions. The point is making structured literature explorations and scraping. I want the scraper (litkit) to be a general tool for scraping papers and extracting quotes of interest with high-throughput, then use LLMs to analyse that throughput if necessary, and order it according to my research question a bit more logically. I am not saying LLMs should not be involved in the workflow at all, but at least design litkit to make their work minimal, to avoid token expenditure. In a way, I want a tool LLMs can use and a tool humans can use if they so desire too."
+        },
+        "D5": {
+          "answer": [
+            "verbatim",
+            "class",
+            "chain",
+            "unc",
+            "match",
+            "repl",
+            "ctx",
+            "src"
+          ],
+          "note": ""
+        },
+        "D6": {
+          "answer": "depth1_both",
+          "note": "Damn, I love you proposed Louvain clusters! So much good memories (I am a KU Leuven researcher and I started my career working with this algorithm!)..."
+        },
+        "D7": {
+          "answer": "sqlite_jsonl",
+          "note": ""
+        },
+        "D8": {
+          "answer": null,
+          "note": "I am realizing this project may start to be too big for the nanovalve workspace. Create a new workspace, with a bootstrapped brain, pre filled with relevant content, in E:\\plalandelg\\litkit. Migrate toon_data\\literature to E:\\plalandelg\\literature_searches (to be .gitignored), under the directory nanovalve_parameters\\. Prefill the brain with relevant information from nanovalve. Create a memory vault in hindsight for this project. Configure the brain to be a memory vault in Obsidian, of course, and link it to my main vault. Work with conda environments and conda-forge as much as possible in setting a proper environment for litkit, to be exported to a environment.yml file or to a conda-lock.yml file, with linux, macos and windows searched dependencies (i.e., trying to be as platform agnostic as possible). Structure the repo to have docs/ src/ and a README.md file for the project. If possible, use gh CLI to create the repo first, instead of initing with git later, and track it as a public project. Create a tests\\ directory too, and place tests there."
+        },
+        "D9": {
+          "answer": "optional_extract",
+          "note": "make the configuration for litkit to be accessible in a text file, like a .toml or a .yaml. I want also LLMs to be able to use this tool by themselves. Think how that could be achieved, I think a CLI tool is sufficient."
+        },
+        "D10": {
+          "answer": "All of them, give options to use whichever the user prefers.",
+          "note": "Maybe, we need to think of a GUI to use this program too, besides designing it primarily as a CLI program."
+        },
+        "D11": {
+          "answer": "db_truth",
+          "note": "Make sure exports from the DB are initially JSON files, and that structure from the exports into mds are a task for LLMs reading litkit databse."
+        },
+        "D12": {
+          "answer": "p1p2",
+          "note": ""
+        },
+        "Q13": {
+          "answer": "He is afraid of LLMs inconsistency and AI, so a persitant script that does what I was already doing with LLMs (searching, indexing documents locally, transcribing to text, extracting quotes) with a notion of quality will appease him. LLMs can also benefit of this structured information as well to draw conclusions and read files, of course."
+        },
+        "K1": {
+          "answer": "copy",
+          "note": ""
+        },
+        "K2": {
+          "answer": "config",
+          "note": "in secrets file, put my email, [REDACTED:personal-email]."
+        },
+        "T1": {
+          "done": true,
+          "note": ""
+        }
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "D1",
+      "type": "choice",
+      "title": "D1 · What \"quality\" means in the pipeline",
+      "body": "No public source rates quality directly. What exists: impact (citations, FWCI, percentile, influential citations), venue standing, integrity (retractions), graph position, and how others cite a claim. Spec §4.",
+      "required": true,
+      "options": [
+        {
+          "value": "indicators_tiers",
+          "label": "Separate named indicators + rule-based tiers A–D (editable YAML)",
+          "description": "Every indicator stored and shown; tiers only rank/filter, never delete. Defensible to a reviewer: \"tier A = measured, chain 0, verbatim, uncertainty, peer-reviewed, not retracted\".",
+          "recommended": true
+        },
+        {
+          "value": "single_score",
+          "label": "One weighted composite score per source and per quote",
+          "description": "Easy to sort; weights are arbitrary and hard to defend."
+        },
+        {
+          "value": "hard_gate",
+          "label": "Hard inclusion thresholds (e.g. exclude FWCI < 0.5 or non-journal)",
+          "description": "Simple, but drops old correct measurements (Smith 1984 FWCI 2.3 OK, but many 1950–70s physical-chemistry papers would fail)."
+        },
+        {
+          "value": "indicators_only",
+          "label": "Indicators only, no tiers",
+          "description": "You judge case by case."
+        }
+      ],
+      "allow_other": true,
+      "answer": "Separate named indicators, keep track of all the scores and metrics that may be related to paper quality and journal quality, then create a weighted composite score based on them. Quotes inherit this score. KEEP TRACK OF EVERYTHING AND MAKE THE WEIGHTED COMPOSITE SCORE EXPLICIT (ITS FORMULA) IN THE DOCUMENTATION.",
+      "note": ""
+    },
+    {
+      "id": "D1a",
+      "type": "choice",
+      "title": "D1a · Composite score: how each indicator is put on a common scale (follow-up to your D1 answer)",
+      "body": "You chose: track every indicator, plus an explicit weighted composite (formula documented), inherited by quotes. Indicators live on very different scales (citations 0–100 000, FWCI 0–50, percentile 0–1, venue h-index, flags).",
+      "required": true,
+      "options": [
+        {
+          "value": "fixed_transforms",
+          "label": "Fixed documented transforms to [0,1], independent of our corpus: percentile as is; counts via log1p(x)/log1p(cap); FWCI via min(FWCI/2,1); venue 2-yr citedness via log; flags 0/1",
+          "description": "Score of a paper does not change when we add other papers; formula fully reproducible.",
+          "recommended": true
+        },
+        {
+          "value": "corpus_percentile",
+          "label": "Rank-percentile within our current corpus",
+          "description": "Self-calibrating but scores shift every time the corpus grows."
+        },
+        {
+          "value": "zscore",
+          "label": "z-scores within corpus",
+          "description": "Sensitive to outliers."
+        }
+      ],
+      "allow_other": true,
+      "answer": "fixed_transforms",
+      "note": ""
+    },
+    {
+      "id": "D1b",
+      "type": "choice",
+      "title": "D1b · Missing indicators (e.g. no S2 record, no venue)",
+      "body": "Old papers, vendor sheets and reports often lack some metrics.",
+      "required": true,
+      "options": [
+        {
+          "value": "renormalize",
+          "label": "Drop missing terms and renormalize the remaining weights; store a coverage fraction next to the score and flag scores with coverage < 0.5",
+          "description": "No penalty for absent data, but low-coverage scores are visible.",
+          "recommended": true
+        },
+        {
+          "value": "zero",
+          "label": "Missing = 0",
+          "description": "Penalises old/grey literature."
+        },
+        {
+          "value": "median",
+          "label": "Impute the corpus median",
+          "description": ""
+        }
+      ],
+      "allow_other": true,
+      "answer": "renormalize",
+      "note": ""
+    },
+    {
+      "id": "D1c",
+      "type": "choice",
+      "title": "D1c · Integrity and peer review in the composite",
+      "body": "",
+      "required": true,
+      "options": [
+        {
+          "value": "veto",
+          "label": "Retracted → composite 0 (veto) and flagged; non-peer-reviewed (vendor sheet, report, preprint) gets a documented multiplier (default 0.5), shown separately",
+          "description": "Integrity cannot be averaged away.",
+          "recommended": true
+        },
+        {
+          "value": "weighted",
+          "label": "Treat them as ordinary weighted terms",
+          "description": ""
+        },
+        {
+          "value": "separate",
+          "label": "Keep them out of the composite, only as flags",
+          "description": ""
+        }
+      ],
+      "allow_other": true,
+      "answer": "veto",
+      "note": ""
+    },
+    {
+      "id": "D1d",
+      "type": "choice",
+      "title": "D1d · What quotes inherit",
+      "body": "You said quotes inherit the score. Quote-level evidence (measured vs cited, chain depth, verbatim, uncertainty, condition match, replications) also exists.",
+      "required": true,
+      "options": [
+        {
+          "value": "inherit_plus",
+          "label": "Quote keeps the inherited source score unchanged AND a separate explicit quote-evidence score (same transparent weighting style); both shown, sortable, never multiplied together silently",
+          "description": "Paper quality and claim quality stay distinguishable (a classic paper can contain a merely cited value).",
+          "recommended": true
+        },
+        {
+          "value": "inherit_only",
+          "label": "Quote score = source score only; quote-level indicators kept as columns",
+          "description": ""
+        },
+        {
+          "value": "product",
+          "label": "Quote score = source score × quote-evidence score",
+          "description": "One number, but mixes two meanings."
+        }
+      ],
+      "allow_other": true,
+      "answer": "inherit_plus",
+      "note": "Make sure to of course track quote level indicators individually too. The point is any derived score we are using, based on other metrics we fetched has to be traceable, i.e., we need to track the numbers that generated our scores, to manually review if needed."
+    },
+    {
+      "id": "D1e",
+      "type": "choice",
+      "title": "D1e · Default weights (editable in litkit.toml; stored with each score)",
+      "body": "Proposed starting weights for the source composite (sum 1): FWCI 0.20, field-year citation percentile 0.20, influential-citation share 0.10, citations in our own corpus 0.15, venue 2-yr citedness 0.10, venue h-index 0.05, citation-context support (S2 sentences) 0.10, low self-citation 0.05, recency/growth 0.05.",
+      "required": true,
+      "options": [
+        {
+          "value": "proposed",
+          "label": "Use the proposed weights as defaults",
+          "description": "Documented in docs/quality-score.md with the formula and a worked example (Smith 1984)."
+        },
+        {
+          "value": "equal",
+          "label": "Equal weights for all indicators",
+          "description": ""
+        },
+        {
+          "value": "later",
+          "label": "Decide after seeing indicator values for our 94 sources",
+          "description": "Build P1 with the proposed weights marked provisional, then revisit.",
+          "recommended": true
+        }
+      ],
+      "allow_other": true,
+      "answer": "later",
+      "note": ""
+    },
+    {
+      "id": "D2",
+      "type": "multi",
+      "title": "D2 · Public APIs to use",
+      "body": "All probed live on 2026-11-24 (spec §2). OpenAlex: your free API key is available (E:\\plalandelg\\api_keys\\keys.json, field `openalex_free_api_key`; verified 2026-11-24, authenticated request accepted). Semantic Scholar works without a key but is rate-limited. Crossref and Unpaywall want a contact email (see K2).",
+      "required": true,
+      "options": [
+        {
+          "value": "openalex",
+          "label": "OpenAlex (works, venues, references, citing works, FWCI, retractions)",
+          "description": ""
+        },
+        {
+          "value": "s2",
+          "label": "Semantic Scholar (influential citations, citation contexts/sentences)",
+          "description": ""
+        },
+        {
+          "value": "coci",
+          "label": "OpenCitations COCI (open references, self-citation flags)",
+          "description": ""
+        },
+        {
+          "value": "crossref",
+          "label": "Crossref (reference lists, corrections/retractions, metadata check)",
+          "description": ""
+        },
+        {
+          "value": "unpaywall",
+          "label": "Unpaywall (legal open-access PDF locations)",
+          "description": ""
+        },
+        {
+          "value": "europepmc",
+          "label": "Europe PMC / PMC (full-text XML for life-science papers)",
+          "description": ""
+        },
+        {
+          "value": "arxiv",
+          "label": "arXiv (preprints)",
+          "description": ""
+        }
+      ],
+      "answer": [
+        "openalex",
+        "s2",
+        "coci",
+        "crossref",
+        "unpaywall",
+        "europepmc",
+        "arxiv"
+      ],
+      "note": ""
+    },
+    {
+      "id": "D3",
+      "type": "choice",
+      "title": "D3 · Journal (venue) metrics",
+      "body": "OpenAlex gives 2-year mean citedness (an open impact-factor analogue), h-index, DOAJ membership, venue type. SCImago SJR/quartiles are free but only as a yearly CSV you download by hand. JIF is proprietary (out of scope).",
+      "required": true,
+      "options": [
+        {
+          "value": "openalex_sjr",
+          "label": "OpenAlex metrics + optional SCImago CSV (used when present)",
+          "description": "SJR quartile per subject is what most reviewers recognise.",
+          "recommended": true
+        },
+        {
+          "value": "openalex",
+          "label": "OpenAlex metrics only",
+          "description": "No manual step."
+        },
+        {
+          "value": "none",
+          "label": "No venue metrics",
+          "description": "Judge works only."
+        }
+      ],
+      "allow_other": true,
+      "answer": "openalex_sjr",
+      "note": "Can you not include a script that fetches the SCImago CSVs in the library, and I can run it and update it when neeeded?"
+    },
+    {
+      "id": "D4",
+      "type": "choice",
+      "title": "D4 · \"Novelty\"",
+      "body": "Options to measure novelty: (a) CD/disruption index — computed from the reference lists of the works that cite a paper (costly: one API call per citing paper, capped); (b) recency + citation growth from counts_by_year; (c) skip. Note: for physical constants novelty is rarely what you want; replication matters more.",
+      "required": true,
+      "options": [
+        {
+          "value": "cd_ondemand",
+          "label": "CD index on demand (corpus only, capped at 200 citers) + recency/growth always",
+          "description": "Novelty available for the papers that matter, cheap by default.",
+          "recommended": true
+        },
+        {
+          "value": "growth",
+          "label": "Recency + citation growth only",
+          "description": "Cheap; no disruption measure."
+        },
+        {
+          "value": "cd_all",
+          "label": "CD index for every work including candidates",
+          "description": "Many API calls."
+        },
+        {
+          "value": "skip",
+          "label": "Skip novelty",
+          "description": ""
+        }
+      ],
+      "allow_other": true,
+      "answer": "cd_ondemand",
+      "note": "True that for physical constants, I do not take particular interest in novelty, but rather on replication. However, I am intending this package to be also usable for other research questions. The point is making structured literature explorations and scraping. I want the scraper (litkit) to be a general tool for scraping papers and extracting quotes of interest with high-throughput, then use LLMs to analyse that throughput if necessary, and order it according to my research question a bit more logically. I am not saying LLMs should not be involved in the workflow at all, but at least design litkit to make their work minimal, to avoid token expenditure. In a way, I want a tool LLMs can use and a tool humans can use if they so desire too."
+    },
+    {
+      "id": "D5",
+      "type": "multi",
+      "title": "D5 · Quote-quality dimensions to compute",
+      "body": "All deterministic from the database (spec §4.3). Replication counts quotes for the same parameter from different author groups agreeing within a factor.\n\nRecommended: verbatim, class, chain, unc, match, repl, ctx, src",
+      "required": true,
+      "options": [
+        {
+          "value": "verbatim",
+          "label": "verbatim check (+ visual flag for OCR)",
+          "description": ""
+        },
+        {
+          "value": "class",
+          "label": "evidence class measured/derived/cited/assumed/vendor",
+          "description": ""
+        },
+        {
+          "value": "chain",
+          "label": "chain depth to the original measurement",
+          "description": ""
+        },
+        {
+          "value": "unc",
+          "label": "uncertainty type reported (none/range/SD/SEM/CI+n)",
+          "description": ""
+        },
+        {
+          "value": "match",
+          "label": "condition match to our experiment (pH, T, ionic strength, Na+/K+, molecule)",
+          "description": ""
+        },
+        {
+          "value": "repl",
+          "label": "independent replications",
+          "description": ""
+        },
+        {
+          "value": "ctx",
+          "label": "how others cite the source (S2 citation sentences)",
+          "description": ""
+        },
+        {
+          "value": "src",
+          "label": "inherited source/venue indicators",
+          "description": ""
+        }
+      ],
+      "answer": [
+        "verbatim",
+        "class",
+        "chain",
+        "unc",
+        "match",
+        "repl",
+        "ctx",
+        "src"
+      ],
+      "note": ""
+    },
+    {
+      "id": "D6",
+      "type": "choice",
+      "title": "D6 · Graph scope and discovery ranking",
+      "body": "Citation graph of corpus + candidates. Discovery ranks non-corpus works by co-citation (how many of ours cite it), bibliographic coupling (it shares references with ours, so it catches newer work), seed-query relevance and quality prior. Every component stored.",
+      "required": true,
+      "options": [
+        {
+          "value": "depth1_both",
+          "label": "Depth-1 snowball both ways (references + citing works), capped per run; Louvain clusters; ranked frontier",
+          "description": "Standard, explainable; caps keep API use bounded.",
+          "recommended": true
+        },
+        {
+          "value": "refs_only",
+          "label": "References only (backward)",
+          "description": "Cheaper; misses newer work."
+        },
+        {
+          "value": "depth2",
+          "label": "Depth-2 both ways",
+          "description": "Explodes in size quickly (Naraghi & Neher has >500 citers)."
+        }
+      ],
+      "allow_other": true,
+      "answer": "depth1_both",
+      "note": "Damn, I love you proposed Louvain clusters! So much good memories (I am a KU Leuven researcher and I started my career working with this algorithm!)..."
+    },
+    {
+      "id": "D7",
+      "type": "choice",
+      "title": "D7 · Storage and git",
+      "body": "One SQLite file is the database. The HTTP cache can be large. Git: SQLite binaries diff badly.",
+      "required": true,
+      "options": [
+        {
+          "value": "sqlite_jsonl",
+          "label": "SQLite DB + a JSONL dump of every table committed (DB and cache git-ignored)",
+          "description": "Reviewable diffs, DB rebuildable from the dump.",
+          "recommended": true
+        },
+        {
+          "value": "sqlite_commit",
+          "label": "Commit the SQLite file itself",
+          "description": "Simplest; opaque diffs."
+        },
+        {
+          "value": "jsonl_only",
+          "label": "JSONL files only, no SQLite",
+          "description": "Diff-friendly, slow queries."
+        }
+      ],
+      "allow_other": true,
+      "answer": "sqlite_jsonl",
+      "note": ""
+    },
+    {
+      "id": "D8",
+      "type": "choice",
+      "title": "D8 · Package name, location, environment",
+      "body": "Code lives where you asked: toon_data/literature/. Environment: the existing nvfit conda env already has requests, httpx, pymupdf (fitz), networkx, pandas, click, openpyxl, rapidfuzz (checked).",
+      "required": true,
+      "options": [
+        {
+          "value": "litkit_nvfit",
+          "label": "toon_data/literature/litkit/ (package) + run with nvfit; tests in toon_data/literature/litkit/tests",
+          "description": "No new env; python -m litkit …",
+          "recommended": true
+        },
+        {
+          "value": "litkit_ownenv",
+          "label": "Same location, own small venv/requirements",
+          "description": "Isolated, one more env."
+        },
+        {
+          "value": "other_name",
+          "label": "Different name (write it below)",
+          "description": ""
+        }
+      ],
+      "allow_other": true,
+      "answer": null,
+      "note": "I am realizing this project may start to be too big for the nanovalve workspace. Create a new workspace, with a bootstrapped brain, pre filled with relevant content, in E:\\plalandelg\\litkit. Migrate toon_data\\literature to E:\\plalandelg\\literature_searches (to be .gitignored), under the directory nanovalve_parameters\\. Prefill the brain with relevant information from nanovalve. Create a memory vault in hindsight for this project. Configure the brain to be a memory vault in Obsidian, of course, and link it to my main vault. Work with conda environments and conda-forge as much as possible in setting a proper environment for litkit, to be exported to a environment.yml file or to a conda-lock.yml file, with linux, macos and windows searched dependencies (i.e., trying to be as platform agnostic as possible). Structure the repo to have docs/ src/ and a README.md file for the project. If possible, use gh CLI to create the repo first, instead of initing with git later, and track it as a public project. Create a tests\\ directory too, and place tests there."
+    },
+    {
+      "id": "D9",
+      "type": "choice",
+      "title": "D9 · Where LLMs are allowed",
+      "body": "You asked to minimise LLM use. Quote candidates can be found deterministically (sentences with numbers+units, parameter lexicon, table rows); an LLM is only needed to judge relevance or extract structured conditions from messy text.",
+      "required": true,
+      "options": [
+        {
+          "value": "none_plus_export",
+          "label": "No LLM inside litkit. Deterministic quote candidates; an optional llm-export writes prompt-ready bundles from the DB for an LLM to read/organise outside",
+          "description": "Pipeline fully reproducible; LLM only reads the DB.",
+          "recommended": true
+        },
+        {
+          "value": "optional_extract",
+          "label": "Same, plus an optional (off by default) LLM step that proposes quotes, always re-verified verbatim by the deterministic checker",
+          "description": "Higher recall; adds an API dependency."
+        },
+        {
+          "value": "no_llm",
+          "label": "No LLM anywhere, no export",
+          "description": ""
+        }
+      ],
+      "allow_other": true,
+      "answer": "optional_extract",
+      "note": "make the configuration for litkit to be accessible in a text file, like a .toml or a .yaml. I want also LLMs to be able to use this tool by themselves. Think how that could be achieved, I think a CLI tool is sufficient."
+    },
+    {
+      "id": "D10",
+      "type": "choice",
+      "title": "D10 · Graph visualization",
+      "body": "",
+      "required": true,
+      "options": [
+        {
+          "value": "graphml_md",
+          "label": "GraphML (open in Gephi) + Markdown report with cluster tables",
+          "description": "No extra dependencies.",
+          "recommended": true
+        },
+        {
+          "value": "plus_html",
+          "label": "Also a self-contained offline HTML graph view",
+          "description": "Nice to browse; a small vendored JS library or plain SVG."
+        },
+        {
+          "value": "png",
+          "label": "Also static PNG plots (matplotlib)",
+          "description": ""
+        }
+      ],
+      "allow_other": true,
+      "answer": "All of them, give options to use whichever the user prefers.",
+      "note": "Maybe, we need to think of a GUI to use this program too, besides designing it primarily as a CLI program."
+    },
+    {
+      "id": "D11",
+      "type": "choice",
+      "title": "D11 · Legacy data and source of truth",
+      "body": "Today raw/_staging/consolidated-evidence.json is the source of truth and generates manifest/quotations. After migration:",
+      "required": true,
+      "options": [
+        {
+          "value": "db_truth",
+          "label": "DB becomes the source of truth; manifest.md/.xlsx, quotations.md, measurements.json are exports; consolidated-evidence.json frozen as an archive",
+          "description": "Single store; existing file formats preserved (+ quality columns).",
+          "recommended": true
+        },
+        {
+          "value": "json_truth",
+          "label": "Keep the JSON as truth, DB as a derived index",
+          "description": "No migration risk; two stores to keep in sync."
+        }
+      ],
+      "allow_other": true,
+      "answer": "db_truth",
+      "note": "Make sure exports from the DB are initially JSON files, and that structure from the exports into mds are a task for LLMs reading litkit databse."
+    },
+    {
+      "id": "D12",
+      "type": "choice",
+      "title": "D12 · First build (MVP)",
+      "body": "Spec §9. P1 = init, import-legacy, enrich, export with quality columns (answers the professor on the existing corpus). P2 = snowball + graph + rank. P3 = search/fetch/text/quote candidates. P4 = tiers + llm-export.",
+      "required": true,
+      "options": [
+        {
+          "value": "p1p2",
+          "label": "Build P1+P2 now, P3+P4 next round",
+          "description": "Quality numbers + knowledge map first; acquisition after you see the map.",
+          "recommended": true
+        },
+        {
+          "value": "all",
+          "label": "Build P1–P4 in one go",
+          "description": ""
+        },
+        {
+          "value": "p1",
+          "label": "P1 only",
+          "description": ""
+        }
+      ],
+      "allow_other": true,
+      "answer": "p1p2",
+      "note": ""
+    },
+    {
+      "id": "Q13",
+      "type": "text",
+      "title": "Q13 · What does your professor most want to see?",
+      "body": "E.g. a table of each parameter's sources with impact/venue/replication; a map of the literature; a written method section. Anything he said verbatim helps.",
+      "required": false,
+      "answer": "He is afraid of LLMs inconsistency and AI, so a persitant script that does what I was already doing with LLMs (searching, indexing documents locally, transcribing to text, extracting quotes) with a notion of quality will appease him. LLMs can also benefit of this structured information as well to draw conclusions and read files, of course."
+    },
+    {
+      "id": "K1",
+      "type": "choice",
+      "title": "K1 · How litkit reads the OpenAlex key",
+      "body": "keys.json also holds Stripe, Brevo and other secrets, so litkit must touch only one field.",
+      "required": true,
+      "options": [
+        {
+          "value": "keysfile_field",
+          "label": "Config stores the PATH to keys.json and the FIELD name; litkit reads only that field at run time, never copies, logs, caches or prints it; env var LITKIT_OPENALEX_KEY overrides",
+          "description": "Key stays in one place; the committed config contains only a path and a field name.",
+          "recommended": true
+        },
+        {
+          "value": "envvar",
+          "label": "Environment variable only (LITKIT_OPENALEX_KEY), you set it yourself",
+          "description": "litkit never opens keys.json."
+        },
+        {
+          "value": "copy",
+          "label": "Copy the key into a git-ignored litkit secrets file",
+          "description": "Two copies of the key."
+        }
+      ],
+      "allow_other": true,
+      "answer": "copy",
+      "note": ""
+    },
+    {
+      "id": "K2",
+      "type": "choice",
+      "title": "K2 · Contact email for Crossref / Unpaywall / OpenAlex polite pools",
+      "body": "Unpaywall requires an email on every request; Crossref and OpenAlex give better service with one. keys.json has no email field. Do not type the email into this form (it is committed).",
+      "required": true,
+      "options": [
+        {
+          "value": "keys_field",
+          "label": "You add a field \"contact_email\" to keys.json; litkit reads it like K1",
+          "description": "Keeps personal data out of the repo.",
+          "recommended": true
+        },
+        {
+          "value": "config",
+          "label": "Put it in litkit.toml (committed to git)",
+          "description": "Simple, but your email ends up in the repo."
+        },
+        {
+          "value": "none",
+          "label": "No email: skip Unpaywall, use Crossref/OpenAlex without it",
+          "description": "Fewer open-access PDF locations."
+        }
+      ],
+      "allow_other": true,
+      "answer": "config",
+      "note": "in secrets file, put my email, [REDACTED:personal-email]."
+    },
+    {
+      "id": "T1",
+      "type": "task",
+      "title": "T1 · OpenAlex API key — DONE (user, chat 2026-11-24)",
+      "body": "Done: the key is in `E:\\plalandelg\\api_keys\\keys.json`, field `openalex_free_api_key` (outside every git repo). Verified by the agent with one request (count 127 citing works of Smith 1984; no throttling notice). Nothing else to do; tick Done if you like.",
+      "required": false,
+      "done": true,
+      "note": ""
+    }
+  ]
+}
+</script>
+<script>
+(function () {
+  'use strict';
+  var OPEN = '<script type="application/json" ' + 'id="form-data">', CLOSE = '</' + 'script>';
+  var SRC = '<!doctype html>\n' + document.documentElement.outerHTML;   // pristine copy, before rendering
+  var data = JSON.parse(document.getElementById('form-data').textContent);
+  if (!Array.isArray(data.responses)) data.responses = [];
+  var fileName = data.meta.file.split('/').pop();
+  var $ = function (id) { return document.getElementById(id); };
+
+  // Unsaved answers survive a reload in this browser (same key as template v1, so older forms keep theirs).
+  var KEY = 'hedwigg-form:' + data.meta.id + ':' + data.meta.last_updated;
+  try { var saved = localStorage.getItem(KEY); if (saved) { var s = JSON.parse(saved); data.items.forEach(function (it) { var o = s[it.id]; if (o) { ['answer','done','note'].forEach(function (k) { if (k in o) it[k] = o[k]; }); } }); } } catch (e) {}
+
+  function esc(t) { return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function md(t) {   // tiny renderer: ```blocks``` and `code`, nothing else
+    return esc(t).split('```').map(function (part, i) { return i % 2 ? '<pre>' + part.replace(/^\w*\n/, '') + '</pre>' : part.replace(/`([^`]+)`/g, '<code>$1</code>'); }).join('');
+  }
+  function answered(it) {
+    if (it.type === 'task') return !!it.done;
+    if (it.type === 'multi') return (it.answer || []).length > 0;
+    return it.answer != null && String(it.answer).trim() !== '';
+  }
+  function say(text, bad) { var m = $('msg'); m.textContent = text; m.className = 'hint' + (bad ? ' bad' : ''); }
+  function nowIso() {
+    var now = new Date(), off = -now.getTimezoneOffset(), p = function (n) { return String(Math.abs(n)).padStart(2, '0'); };
+    return now.getFullYear() + '-' + p(now.getMonth() + 1) + '-' + p(now.getDate()) + 'T' + p(now.getHours()) + ':' + p(now.getMinutes()) + ':' + p(now.getSeconds()) + (off >= 0 ? '+' : '-') + p(off / 60 | 0) + ':' + p(off % 60);
+  }
+  function persist() {
+    var s = {}; data.items.forEach(function (it) { s[it.id] = { answer: it.answer, done: it.done, note: it.note }; });
+    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
+    var n = data.items.filter(answered).length;
+    $('prog').style.width = (100 * n / data.items.length) + '%';
+    $('count').textContent = n + ' / ' + data.items.length;
+    data.items.forEach(function (it) { var el = $('item-' + it.id); if (el) el.classList.toggle('done', answered(it)); });
+  }
+
+  // ---- where are we running? Writing into the file needs Chrome or Edge in a normal tab. ----
+  var embedded = (function () { try { return window.top !== window.self; } catch (e) { return true; } })() || /\b(Code|Electron)\//.test(navigator.userAgent);
+  var canWrite = !!window.showOpenFilePicker && !embedded;
+  if (embedded) {
+    $('env').hidden = false;
+    $('env').textContent = 'This page is shown inside another app (an editor preview or embedded browser), which does not let pages write files. ' +
+      'Open ' + fileName + ' in Chrome or Edge to save into it: right-click the file → Open with, or drag it into a browser tab. Your answers stay in this window meanwhile.';
+  } else if (!window.showOpenFilePicker) {
+    $('env').hidden = false;
+    $('env').textContent = 'This browser cannot write into files (Firefox and Safari can\'t). Open ' + fileName + ' in Chrome or Edge to save into it; here "Download a copy" is the fallback.';
+  }
+
+  // ---- header and tabs ----
+  document.title = data.meta.title;
+  $('title').textContent = data.meta.title;
+  $('meta').textContent = data.meta.file + ' · ' + data.meta.produced_by_model + ' · ' + data.meta.created + ' · status ' + data.meta.status;
+  $('intro').innerHTML = md(data.meta.intro || '');
+  function showTab(hist) {
+    $('tab-form').setAttribute('aria-selected', String(!hist)); $('tab-hist').setAttribute('aria-selected', String(hist));
+    $('form').hidden = hist; $('history').hidden = !hist;
+  }
+  $('tab-form').onclick = function () { showTab(false); };
+  $('tab-hist').onclick = function () { showTab(true); };
+
+  // ---- the form ----
+  var form = $('form');
+  data.items.forEach(function (it, idx) {
+    var d = document.createElement('section'); d.className = 'item'; d.id = 'item-' + it.id;
+    var h = '<h2><span class="num">' + (idx + 1) + '</span><span>' + esc(it.title) + '</span>' +
+      '<span class="tag">' + esc(it.type) + '</span>' + (it.required ? '<span class="tag req">required</span>' : '') + '</h2>';
+    if (it.body) h += '<div class="body">' + md(it.body) + '</div>';
+    var name = 'f-' + it.id;
+    if (it.type === 'task') {
+      h += '<label class="opt"><input type="checkbox" data-k="done"' + (it.done ? ' checked' : '') + '> Done</label>';
+    } else if (it.type === 'choice' || it.type === 'multi') {
+      var multi = it.type === 'multi', cur = it.answer;
+      (it.options || []).forEach(function (o) {
+        var on = multi ? (cur || []).indexOf(o.value) >= 0 : cur === o.value;
+        h += '<label class="opt"><input type="' + (multi ? 'checkbox' : 'radio') + '" name="' + name + '" value="' + esc(o.value) + '"' + (on ? ' checked' : '') + '> ' +
+          esc(o.label) + (o.recommended ? ' <span class="rec">(recommended)</span>' : '') + (o.description ? '<span class="optdesc">' + md(o.description) + '</span>' : '') + '</label>';
+      });
+      if (it.allow_other && !multi) {
+        var isOther = cur != null && !(it.options || []).some(function (o) { return o.value === cur; });
+        h += '<label class="opt"><input type="radio" name="' + name + '" value="__other"' + (isOther ? ' checked' : '') + '> Other: <input type="text" data-k="other" value="' + (isOther ? esc(cur) : '') + '"></label>';
+      }
+    } else {
+      h += '<textarea data-k="answer">' + esc(it.answer || '') + '</textarea>';
+    }
+    if (it.type !== 'text') h += '<div class="row"><input type="text" data-k="note" placeholder="Note (optional)" value="' + esc(it.note || '') + '"></div>';
+    d.innerHTML = h;
+    d.addEventListener('input', function (ev) {
+      var t = ev.target, k = t.getAttribute('data-k');
+      if (k === 'done') it.done = t.checked;
+      else if (k === 'note') it.note = t.value;
+      else if (k === 'answer') it.answer = t.value;
+      else if (k === 'other') { it.answer = t.value; var r = d.querySelector('input[value="__other"]'); if (r) r.checked = true; }
+      else if (t.name === name && it.type === 'multi') it.answer = Array.prototype.filter.call(d.querySelectorAll('input[name="' + name + '"]'), function (x) { return x.checked; }).map(function (x) { return x.value; });
+      else if (t.name === name) it.answer = t.value === '__other' ? (d.querySelector('[data-k="other"]').value || '') : t.value;
+      persist();
+    });
+    form.appendChild(d);
+  });
+  persist();
+
+  // ---- previous responses ----
+  function show(it, a) {
+    if (!a) return '—';
+    var v;
+    if (it.type === 'task') v = a.done ? 'done' : 'not done';
+    else if (it.type === 'multi') v = (a.answer || []).map(function (x) { var o = (it.options || []).filter(function (o) { return o.value === x; })[0]; return o ? o.label : x; }).join(', ') || '—';
+    else if (it.type === 'choice') { var o = (it.options || []).filter(function (o) { return o.value === a.answer; })[0]; v = o ? o.label : (a.answer == null || a.answer === '' ? '—' : a.answer); }
+    else v = a.answer == null || String(a.answer).trim() === '' ? '—' : a.answer;
+    return v + (a.note ? ' (note: ' + a.note + ')' : '');
+  }
+  function renderHistory() {
+    var rs = data.responses, box = $('history');
+    $('tab-hist').textContent = 'Previous responses (' + rs.length + ')';
+    if (!rs.length) { box.innerHTML = '<p class="hint">No response saved yet. Each "Save into this file" adds one here, and nothing is ever overwritten.</p>'; return; }
+    var html = '';
+    for (var i = rs.length - 1; i >= 0; i--) {
+      var r = rs[i], prev = i > 0 ? rs[i - 1].answers || {} : {}, cur = r.answers || {}, changes = '', all = '';
+      data.items.forEach(function (it) {
+        var now = show(it, cur[it.id]), was = show(it, prev[it.id]);
+        all += '<li><b>' + esc(it.title) + ':</b> ' + esc(now) + '</li>';
+        if (now !== was) changes += '<li><b>' + esc(it.title) + ':</b> ' + (i > 0 ? '<span class="old">' + esc(was) + '</span> → ' : '') + esc(now) + '</li>';
+      });
+      html += '<section class="item resp"><h2><span class="num">#' + (i + 1) + '</span><span>' + esc(r.saved_at) + '</span><span class="tag">' + esc(r.status || '') + '</span></h2>' +
+        (changes ? '<div class="hint">' + (i > 0 ? 'Changed since #' + i : 'Answers') + '</div><ul>' + changes + '</ul>' : '<div class="hint">No change since #' + i + '.</div>') +
+        '<details><summary>All answers in #' + (i + 1) + '</summary><ul>' + all + '</ul></details></section>';
+    }
+    box.innerHTML = html;
+  }
+  renderHistory();
+
+  // ---- saving: everything goes into this same file ----
+  function snapshot(iso) {
+    var a = {};
+    data.items.forEach(function (it) { var o = {}; ['answer','done','note'].forEach(function (k) { if (it[k] !== undefined) o[k] = it[k]; }); a[it.id] = o; });
+    return { saved_at: iso, status: data.meta.status, answers: a };
+  }
+  function formOf(html) {   // the form-data JSON of an HTML text, or null
+    try { var el = new DOMParser().parseFromString(html, 'text/html').getElementById('form-data'); return el ? JSON.parse(el.textContent) : null; } catch (e) { return null; }
+  }
+  function withJson(html, obj) {
+    var i = html.indexOf(OPEN), j = html.indexOf(CLOSE, i);
+    if (i < 0 || j < 0) throw new Error('the form-data block is missing');
+    return html.slice(0, i + OPEN.length) + '\n' + JSON.stringify(obj, null, 2).replace(/<\//g, '<\\/') + '\n' + html.slice(j);
+  }
+  // Builds the new file. base = the file's current text (so a newer template or responses saved from another
+  // tab are kept) or this page's own source. Returns { html, obj }.
+  function build(baseHtml, onDisk) {
+    var iso = nowIso();
+    var req = data.items.filter(function (it) { return it.required; });
+    if (data.meta.status === 'open' && req.every(answered)) data.meta.status = 'answered';
+    data.meta.answered_at = iso;
+    var obj = JSON.parse(JSON.stringify(data));
+    var past = onDisk && Array.isArray(onDisk.responses) && onDisk.responses.length >= data.responses.length ? onDisk.responses : data.responses;
+    if (onDisk && onDisk.meta && (onDisk.meta.status === 'processed' || onDisk.meta.status === 'superseded')) obj.meta.status = onDisk.meta.status;
+    obj.responses = past.concat([snapshot(iso)]);
+    return { html: withJson(baseHtml, obj), obj: obj };
+  }
+
+  var DB = 'hedwigg-forms', STORE = 'handles';
+  function idb() { return new Promise(function (ok, no) { var r = indexedDB.open(DB, 1); r.onupgradeneeded = function () { r.result.createObjectStore(STORE); }; r.onsuccess = function () { ok(r.result); }; r.onerror = function () { no(r.error); }; }); }
+  function loadHandle() { return idb().then(function (db) { return new Promise(function (ok) { var q = db.transaction(STORE).objectStore(STORE).get(data.meta.id); q.onsuccess = function () { ok(q.result || null); }; q.onerror = function () { ok(null); }; }); }).catch(function () { return null; }); }
+  function keepHandle(h) { return idb().then(function (db) { db.transaction(STORE, 'readwrite').objectStore(STORE).put(h, data.meta.id); }).catch(function () {}); }
+  function forgetHandle() { return idb().then(function (db) { db.transaction(STORE, 'readwrite').objectStore(STORE).delete(data.meta.id); }).catch(function () {}); }
+
+  var handle = null;
+  async function pickFile() {
+    say('Choose this form\'s own file, ' + fileName + ' (in brain/actions/). The page asks only once.');
+    var hs = await window.showOpenFilePicker({ id: 'hedwigg-actions', multiple: false, types: [{ description: 'Action form', accept: { 'text/html': ['.html'] } }] });
+    return hs[0];
+  }
+  async function writeIntoFile() {
+    if (!handle) handle = await loadHandle();
+    if (!handle) handle = await pickFile();
+    var perm = await handle.queryPermission({ mode: 'readwrite' });
+    // requestPermission needs a fresh click; if Chrome refuses it here, createWritable below asks instead.
+    if (perm !== 'granted') { try { perm = await handle.requestPermission({ mode: 'readwrite' }); } catch (e) { perm = 'prompt'; } }
+    if (perm === 'denied') { var e = new Error('permission'); e.name = 'NotAllowedError'; throw e; }
+    var text = await (await handle.getFile()).text(), onDisk = formOf(text);
+    if (!onDisk || !onDisk.meta || onDisk.meta.id !== data.meta.id) {
+      var picked = handle.name; handle = null; await forgetHandle();
+      throw new Error(picked + ' is not this form (' + fileName + '). Nothing was written; press Save again and pick ' + fileName + '.');
+    }
+    var out = build(text, onDisk);
+    var w = await handle.createWritable();
+    await w.write(out.html); await w.close();
+    await keepHandle(handle);
+    data.responses = out.obj.responses; data.meta.status = out.obj.meta.status;
+    renderHistory();
+    $('meta').textContent = data.meta.file + ' · ' + data.meta.produced_by_model + ' · ' + data.meta.created + ' · status ' + data.meta.status;
+    say('Saved into ' + handle.name + ' at ' + out.obj.meta.answered_at.slice(11, 16) + ' (response #' + data.responses.length + ', status ' + data.meta.status + '). Tell the model in chat.');
+  }
+  function download() {
+    var out = build(SRC, null);
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([out.html], { type: 'text/html' })); a.download = fileName; a.click();
+    data.responses = out.obj.responses; renderHistory();
+    say('Downloaded ' + fileName + ' (response #' + data.responses.length + '). Move it over the original in brain/actions/.');
+  }
+  $('save').onclick = async function () {
+    if (!canWrite) { say(embedded ? 'Saving into the file does not work inside this app. Open ' + fileName + ' in Chrome or Edge, or use "Download a copy".' : 'This browser cannot write files. Use Chrome or Edge, or "Download a copy".', true); return; }
+    try { await writeIntoFile(); }
+    catch (e) {
+      if (e.name === 'AbortError') { say('Not saved (no file chosen).'); return; }
+      if (e.name === 'NotAllowedError' || e.name === 'SecurityError') { handle = null; await forgetHandle(); say('The browser did not allow writing to the file (permission refused, or the page runs where file writes are blocked). Open ' + fileName + ' directly in Chrome or Edge and press Save again, or use "Download a copy". Your answers are kept.', true); return; }
+      say('Save failed: ' + e.message, true);
+    }
+  };
+  $('download').onclick = download;
+  $('copy').onclick = function () {
+    var out = data.items.map(function (it, i) { return (i + 1) + '. ' + it.title + ': ' + (it.type === 'task' ? (it.done ? 'done' : 'not done') : JSON.stringify(it.answer)) + (it.note ? ' (note: ' + it.note + ')' : ''); }).join('\n');
+    navigator.clipboard.writeText(out).then(function () { say('Answers copied; paste them in the chat.'); });
+  };
+})();
+</script>
+</body>
+</html>

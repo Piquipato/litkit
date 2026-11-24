@@ -1,0 +1,5 @@
+{
+  "store_convs": true,
+  "summarize_model_response": false,
+  "redact_secrets": true
+}

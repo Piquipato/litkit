@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+build/
+dist/
+secrets/
+secrets.toml
+.env
+*.db
+*.db-wal
+*.db-shm
+cache/
+literature_searches/
+.local/
+brain/.obsidian/workspace*.json
